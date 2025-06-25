@@ -6,7 +6,7 @@ on:
       script:
         description: 'Script to run'
         required: true
-        default: 'getOrders.js'
+        default: 'supplier.js'
 
 jobs:
   run-script:
