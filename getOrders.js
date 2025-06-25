@@ -7,7 +7,6 @@ const SHOPIFY_SHOP_NAME = process.env.SHOPIFY_SHOP_NAME;
 
 const SHOPIFY_API_URL = `https://${SHOPIFY_SHOP_NAME}.myshopify.com/admin/api/2024-04/orders.json?status=open&financial_status=paid&fields=shipping_address,line_items,order_number,note,financial_status`;
 
-// Function to fetch orders from Shopify
 async function fetchShopifyOrders() {
     try {
         const response = await axios.get(SHOPIFY_API_URL, {
