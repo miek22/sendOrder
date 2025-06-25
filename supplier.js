@@ -1,6 +1,6 @@
 require('dotenv').config();
 const axios = require('axios');
-const { fetchShopifyOrders } = require('./shopify');
+const { fetchShopifyOrders } = require('./getOrders');
 const fs = require('fs');
 const path = './sentOrders.json';
 
