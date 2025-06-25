@@ -24,6 +24,12 @@ jobs:
       - name: Run selected script
         run: node ${{ github.event.inputs.script }}
         env:
+          SUPPLIER_API_URL_INVENTORY: ${{ secrets.SUPPLIER_API_URL_INVENTORY }}
+          SUPPLIER_API_KEY: ${{ secrets.SUPPLIER_API_KEY }}
           SHOPIFY_API_KEY: ${{ secrets.SHOPIFY_API_KEY }}
           SHOPIFY_API_PASSWORD: ${{ secrets.SHOPIFY_API_PASSWORD }}
           SHOPIFY_SHOP_NAME: ${{ secrets.SHOPIFY_SHOP_NAME }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          SHOPIFY_LOCATION_ID: ${{ secrets.SHOPIFY_LOCATION_ID }}
