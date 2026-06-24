@@ -1,35 +1,50 @@
-name: Run Script
+name: Send Orders to Suppliers
 
+# Manual trigger only - click "Run workflow" in the Actions tab whenever
+# you want to send any new paid orders out. Nothing runs automatically.
 on:
   workflow_dispatch:
     inputs:
-      script:
-        description: 'Script to run'
-        required: true
-        default: 'supplier.js'
+      testing:
+        description: "Dry run (true/false) - don't actually send or log anything as sent"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
 
 jobs:
-  run-script:
+  send-orders:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "20"
 
-      - run: npm install
+      - name: Install dependencies
+        run: npm install
 
-      - name: Run selected script
-        run: node ${{ github.event.inputs.script }}
+      - name: Run order sender
         env:
-          SUPPLIER_API_URL_INVENTORY: ${{ secrets.SUPPLIER_API_URL_INVENTORY }}
-          SUPPLIER_API_KEY: ${{ secrets.SUPPLIER_API_KEY }}
           SHOPIFY_API_KEY: ${{ secrets.SHOPIFY_API_KEY }}
           SHOPIFY_API_PASSWORD: ${{ secrets.SHOPIFY_API_PASSWORD }}
           SHOPIFY_SHOP_NAME: ${{ secrets.SHOPIFY_SHOP_NAME }}
+          SUPPLIER_API_URL: ${{ secrets.SUPPLIER_API_URL }}
+          SUPPLIER_API_KEY: ${{ secrets.SUPPLIER_API_KEY }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          SHOPIFY_LOCATION_ID: ${{ secrets.SHOPIFY_LOCATION_ID }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          TESTING: ${{ github.event.inputs.testing }}
+        run: node sendOrders.js
+
+      - name: Commit updated sentOrders.csv
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update sentOrders.csv [skip ci]"
+          file_pattern: sentOrders.csv
