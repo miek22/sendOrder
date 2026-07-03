@@ -14,3 +14,4 @@ timestamp,orderNumber,vendor,status,detail
 2026-07-03T17:27:24.984Z,2734,TR-AU,error,status: 500 | msg: Request failed with status code 500
 2026-07-03T18:00:22.919Z,2734,TR-AU,sent,"WHSE 021, 4 item(s)"
 2026-07-03T18:11:30.721Z,2736,TR-AU,sent,"WHSE 021, 1 item(s)"
+2026-07-03T18:41:26.322Z,2737,TR-AU,sent,"WHSE 001, 1 item(s)"
