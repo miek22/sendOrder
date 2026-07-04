@@ -17,3 +17,6 @@ timestamp,orderNumber,vendor,status,detail
 2026-07-03T18:41:26.322Z,2737,TR-AU,sent,"WHSE 001, 1 item(s)"
 2026-07-04T00:15:16.117Z,2739,TR-AU,sent,"WHSE 001, 1 item(s)"
 2026-07-04T00:15:17.163Z,2738,TR-AU,error,status: 400 | msg: Request failed with status code 400
+2026-07-04T22:20:14.238Z,2742,TR-AU,sent,"WHSE 021, 1 item(s)"
+2026-07-04T22:20:14.952Z,2741,TR-AU,sent,"WHSE 001, 1 item(s)"
+2026-07-04T22:20:15.630Z,2740,TR-AU,sent,"WHSE 001, 1 item(s)"
