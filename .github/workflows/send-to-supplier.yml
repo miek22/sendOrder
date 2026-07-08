@@ -41,6 +41,9 @@ jobs:
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
           TESTING: ${{ github.event.inputs.testing }}
+          SUPPLIER_API_URL_INVENTORY: ${{ secrets.SUPPLIER_API_URL_INVENTORY }}
+          SUPPLIER_API_URL_INVENTORY_CAL: ${{ secrets.SUPPLIER_API_URL_INVENTORY_CAL }}
+
         run: node sendOrders.js
 
       - name: Commit updated sentOrders.csv
