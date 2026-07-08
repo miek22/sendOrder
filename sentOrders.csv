@@ -30,3 +30,4 @@ timestamp,orderNumber,vendor,status,detail
 2026-07-07T17:15:34.789Z,2750,TR-AU,sent,"WHSE 001, 1 item(s)"
 2026-07-07T23:31:41.842Z,2751,TR-AU,error,status: 400 | msg: Request failed with status code 400
 2026-07-08T04:50:30.227Z,2751,TR-AU,error,status: n/a | msg: timeout of 30000ms exceeded
+2026-07-08T04:53:11.684Z,2751,TR-AU,error,status: 400 | msg: Request failed with status code 400
