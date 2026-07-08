@@ -1,15 +1,18 @@
 // Combined order-sending script.
-//   TR-AU items -> sent via Supplier REST API
+//   TR-AU items -> sent via Supplier REST API (with inventory pre-check)
 //   KE-L  items -> sent via email to LKQ
 //
-// Tracks sent orders PER VENDOR in sentOrders.csv (so an order containing
-// both TR-AU and KE-L parts gets both sent, instead of being marked "done"
-// after only one vendor's items went out).
+// Before sending any TR-AU order, checks Transit inventory at both warehouses
+// (001 = East, 021 = West/Calgary). Routes each item to the warehouse that has
+// stock. If an order needs to split across both warehouses, the alt-warehouse
+// shipment gets "0" prepended to the PO number to avoid duplicate PO errors.
 //
-// On any send failure, emails ALERT_EMAIL with the order # and the error
-// so it doesn't only show up in a console log nobody is watching.
+// Tracks sent orders per VENDOR + WAREHOUSE in sentOrders.csv so a split order
+// is tracked as two separate rows — if one half fails, the next run retries only
+// that half, not the already-sent half.
 //
-// Does NOT fulfill orders in Shopify — fulfill manually to avoid duplicate orders.
+// On any failure, emails ALERT_EMAIL with the order # and error.
+// Does NOT fulfill orders in Shopify — fulfill manually to avoid duplicates.
 
 require('dotenv').config();
 const fs = require('fs');
@@ -21,14 +24,19 @@ const { fetchShopifyOrders } = require('./shopify');
 const TESTING = process.env.TESTING === 'true';
 
 const SENT_ORDERS_CSV = path.join(__dirname, 'sentOrders.csv');
-const CSV_HEADER = 'timestamp,orderNumber,vendor,status,detail';
+const CSV_HEADER = 'timestamp,orderNumber,vendor,warehouse,status,detail';
 
 const SUPPLIER_API_URL = process.env.SUPPLIER_API_URL;
 const SUPPLIER_API_KEY = process.env.SUPPLIER_API_KEY;
+const SUPPLIER_API_URL_INVENTORY     = process.env.SUPPLIER_API_URL_INVENTORY;
+const SUPPLIER_API_URL_INVENTORY_CAL = process.env.SUPPLIER_API_URL_INVENTORY_CAL;
 const ALERT_EMAIL = process.env.ALERT_EMAIL || process.env.TO_EMAIL;
 
 // ---------------------------------------------------------
-// CSV tracking (replaces sentOrders.json)
+// CSV tracking
+// Columns: timestamp, orderNumber, vendor, warehouse, status, detail
+// warehouse = '001' | '021' | 'EMAIL' | 'NONE'
+// Only rows with status='sent' are treated as done. Errors/no_stock get retried.
 // ---------------------------------------------------------
 function ensureCsvExists() {
     if (!fs.existsSync(SENT_ORDERS_CSV)) {
@@ -38,28 +46,26 @@ function ensureCsvExists() {
 
 function csvEscape(value) {
     const str = String(value ?? '');
-    if (/[",\n]/.test(str)) {
-        return `"${str.replace(/"/g, '""')}"`;
-    }
+    if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
     return str;
 }
 
-// Minimal CSV line parser that respects a quoted final "detail" field.
 function parseCsvLine(line) {
-    const firstFour = [];
+    // Parse 5 plain columns, then a possibly-quoted detail field
+    const firstFive = [];
     let rest = line;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
         const idx = rest.indexOf(',');
         if (idx === -1) return null;
-        firstFour.push(rest.slice(0, idx));
+        firstFive.push(rest.slice(0, idx));
         rest = rest.slice(idx + 1);
     }
     let detail = rest;
     if (detail.startsWith('"') && detail.endsWith('"')) {
         detail = detail.slice(1, -1).replace(/""/g, '"');
     }
-    const [timestamp, orderNumber, vendor, status] = firstFour;
-    return { timestamp, orderNumber, vendor, status, detail };
+    const [timestamp, orderNumber, vendor, warehouse, status] = firstFive;
+    return { timestamp, orderNumber, vendor, warehouse, status, detail };
 }
 
 function readSentOrders() {
@@ -68,21 +74,23 @@ function readSentOrders() {
     return lines.slice(1).map(parseCsvLine).filter(Boolean);
 }
 
-function appendSentOrderRow({ orderNumber, vendor, status, detail }) {
+function appendSentOrderRow({ orderNumber, vendor, warehouse, status, detail }) {
     ensureCsvExists();
     const row = [
         new Date().toISOString(),
         orderNumber,
         vendor,
+        warehouse,
         status,
         csvEscape(detail || ''),
     ].join(',');
     fs.appendFileSync(SENT_ORDERS_CSV, row + '\n');
 }
 
-function alreadySent(orderNumber, vendor, sentRows) {
+// A shipment is "done" only if there's a sent row for this exact order+vendor+warehouse combo
+function alreadySent(orderNumber, vendor, warehouse, sentRows) {
     return sentRows.some(
-        r => r.orderNumber === String(orderNumber) && r.vendor === vendor && r.status === 'sent'
+        r => r && r.orderNumber === String(orderNumber) && r.vendor === vendor && r.warehouse === warehouse && r.status === 'sent'
     );
 }
 
@@ -92,9 +100,7 @@ function alreadySent(orderNumber, vendor, sentRows) {
 function formatPhoneNumber(phoneNumber) {
     if (!phoneNumber) return null;
     const digits = String(phoneNumber).replace(/\D/g, '');
-    if (digits.length === 10) {
-        return digits.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
-    }
+    if (digits.length === 10) return digits.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
     return phoneNumber;
 }
 
@@ -106,6 +112,10 @@ function pickWarehouseByProvince(provinceCode) {
     const WEST = new Set(['MB', 'SK', 'AB', 'BC', 'YT', 'NT', 'NU']);
     const code = String(provinceCode || '').toUpperCase().trim();
     return WEST.has(code) ? '021' : '001';
+}
+
+function otherWarehouse(whse) {
+    return whse === '001' ? '021' : '001';
 }
 
 function escHtml(s = '') {
@@ -126,14 +136,61 @@ function fmtAddress(addr = {}) {
 }
 
 // ---------------------------------------------------------
+// Inventory (Transit Inc) - fetched once per run, cached
+// ---------------------------------------------------------
+let inventoryCache = null;
+
+function buildInventoryLookup(data) {
+    const map = {};
+    // API returns { inventory: [["SKU123", 5], ["SKU456", 0], ...] }
+    const items = Array.isArray(data?.inventory) ? data.inventory : [];
+    for (const item of items) {
+        if (!Array.isArray(item)) continue;
+        const sku = item[0];
+        const qty = item[1];
+        if (sku) map[String(sku).toUpperCase().trim()] = Number(qty ?? 0);
+    }
+    return map;
+}
+
+async function fetchInventory() {
+    if (inventoryCache) return inventoryCache;
+
+    const encodedAuthToken = encodeApiKeyToBase64(SUPPLIER_API_KEY);
+    const headers = { Authorization: `Basic ${encodedAuthToken}` };
+
+    const [eastRes, westRes] = await Promise.all([
+        axios.get(SUPPLIER_API_URL_INVENTORY,     { headers, timeout: 60000 }),
+        axios.get(SUPPLIER_API_URL_INVENTORY_CAL, { headers, timeout: 60000 }),
+    ]);
+
+    if (TESTING) {
+        const sample001 = eastRes.data?.inventory?.[0];
+        const sample021 = westRes.data?.inventory?.[0];
+        console.log('TEST MODE - Inventory 001 first entry (expect [sku, qty]):', JSON.stringify(sample001));
+        console.log('TEST MODE - Inventory 021 first entry (expect [sku, qty]):', JSON.stringify(sample021));
+    }
+
+    inventoryCache = {
+        '001': buildInventoryLookup(eastRes.data),
+        '021': buildInventoryLookup(westRes.data),
+    };
+
+    console.log(`Inventory loaded: 001=${Object.keys(inventoryCache['001']).length} SKUs, 021=${Object.keys(inventoryCache['021']).length} SKUs`);
+    return inventoryCache;
+}
+
+function getStock(inventory, whse, sku) {
+    return inventory[whse]?.[String(sku).toUpperCase().trim()] ?? 0;
+}
+
+// ---------------------------------------------------------
 // Email transport (Gmail) + error alert
 // ---------------------------------------------------------
 function createTransport() {
     const user = process.env.EMAIL_USER;
     const pass = process.env.EMAIL_PASS;
-    if (!user || !pass) {
-        throw new Error('Missing EMAIL_USER or EMAIL_PASS environment variable.');
-    }
+    if (!user || !pass) throw new Error('Missing EMAIL_USER or EMAIL_PASS environment variable.');
     return nodemailer.createTransport({ service: 'gmail', auth: { user, pass } });
 }
 
@@ -157,32 +214,16 @@ async function sendErrorAlert(transporter, { orderNumber, vendor, message }) {
 // ===========================================================
 // TR-AU -> Supplier REST API
 // ===========================================================
-async function sendTrAuOrder(order, sentRows, transporter) {
-    const vendorItems = order.line_items.filter(
-        item => item.vendor === 'TR-AU' && item.current_quantity > 0
-    );
-    if (vendorItems.length === 0) return;
-    if (alreadySent(order.order_number, 'TR-AU', sentRows)) return;
-
-    const total = parseFloat(order.total_price || '0');
-    const gateways = (order.payment_gateway_names || []).map(g => String(g).toLowerCase());
-    const paymentLabel = gateways.length ? gateways.join(', ') : 'unknown';
-    const requireSignature = total > 300;
-    const signatureLabel = requireSignature ? 'SIGNATURE REQUIRED: yes' : 'SIGNATURE REQUIRED: no';
-    const transitNote = requireSignature
-        ? 'SIGNATURE REQUIRED ON DELIVERY FOR THIS ONE PLEASE. THANK YOU.'
-        : null;
-
+function buildFormattedOrder({ whse, po, order, items, requireSignature }) {
     const ship = order.shipping_address || {};
-    const provinceCode = ship.province_code;
-    const whse = pickWarehouseByProvince(provinceCode);
-
-    const formattedOrder = {
+    return {
         whse,
         whsePickup: null,
-        purchaseOrder: `${order.order_number}`,
+        purchaseOrder: po,
         shippingService: null,
-        transitNote,
+        transitNote: requireSignature
+            ? 'SIGNATURE REQUIRED ON DELIVERY FOR THIS ONE PLEASE. THANK YOU.'
+            : null,
         documentNote: null,
         shipTo: {
             languageNo: 'EN',
@@ -198,7 +239,7 @@ async function sendTrAuOrder(order, sentRows, transporter) {
             country: ship.country_code || null,
             note: null,
         },
-        details: vendorItems.map(item => ({
+        details: items.map(item => ({
             product: item.sku,
             crossReference: 'ref#',
             qty: item.current_quantity,
@@ -206,70 +247,143 @@ async function sendTrAuOrder(order, sentRows, transporter) {
             declaredValue: 0.0,
         })),
     };
+}
 
-    if (TESTING) {
-        console.log(
-            `TEST MODE - TR-AU Order ${formattedOrder.purchaseOrder} would be sent | WHSE: ${whse} | Payment: ${paymentLabel} | ${signatureLabel}`
-        );
-        formattedOrder.details.forEach(item =>
-            console.log(`  TEST MODE - SKU: ${item.product} | Qty: ${item.qty}`)
-        );
-        return;
-    }
-
+async function postOrderToSupplier(formattedOrder, transporter, orderNumber, whse) {
+    const encodedAuthToken = encodeApiKeyToBase64(SUPPLIER_API_KEY);
     try {
-        const encodedAuthToken = encodeApiKeyToBase64(SUPPLIER_API_KEY);
         await axios.post(SUPPLIER_API_URL, formattedOrder, {
-            headers: {
-                Authorization: `Basic ${encodedAuthToken}`,
-                'Content-Type': 'application/json',
-            },
+            headers: { Authorization: `Basic ${encodedAuthToken}`, 'Content-Type': 'application/json' },
             timeout: 30000,
         });
-
-        console.log(
-            `Order ${order.order_number} (TR-AU) sent | WHSE: ${whse} | items: ${vendorItems.length} | Payment: ${paymentLabel} | ${signatureLabel}`
-        );
-        appendSentOrderRow({
-            orderNumber: order.order_number,
-            vendor: 'TR-AU',
-            status: 'sent',
-            detail: `WHSE ${whse}, ${vendorItems.length} item(s)`,
-        });
+        console.log(`Order ${formattedOrder.purchaseOrder} (TR-AU) sent to WHSE ${whse}`);
+        return { success: true };
     } catch (err) {
         const status = err.response?.status;
         const body = err.response?.data;
         const bodyText = typeof body === 'string' ? body : JSON.stringify(body || {});
         const isNoStock = /no\s*stock|out\s*of\s*stock|insufficient|not\s*available|backorder/i.test(bodyText);
+        const detail = isNoStock
+            ? `NO STOCK (API rejected) | WHSE: ${whse} | HTTP: ${status}`
+            : `ERROR | WHSE: ${whse} | HTTP: ${status || 'n/a'} | ${err.message}`;
+        console.log(`Order ${formattedOrder.purchaseOrder} NOT sent: ${detail}`);
+        await sendErrorAlert(transporter, { orderNumber, vendor: 'TR-AU', message: detail });
+        return { success: false, detail };
+    }
+}
 
-        if (isNoStock) {
-            const detail = `NO STOCK | WHSE: ${whse} | province: ${provinceCode || '?'} | sku(s): ${vendorItems.map(v => v.sku).join(', ')}`;
-            console.log(`Order ${order.order_number} NOT sent (NO STOCK): ${detail}`);
-            appendSentOrderRow({ orderNumber: order.order_number, vendor: 'TR-AU', status: 'no_stock', detail });
-            await sendErrorAlert(transporter, {
-                orderNumber: order.order_number,
-                vendor: 'TR-AU',
-                message: `Out of stock: ${detail}`,
-            });
-        } else {
-            const detail = `status: ${status || 'n/a'} | msg: ${err.message}`;
-            console.log(`Order ${order.order_number} NOT sent (ERROR): ${detail}`);
-            appendSentOrderRow({ orderNumber: order.order_number, vendor: 'TR-AU', status: 'error', detail });
-            await sendErrorAlert(transporter, { orderNumber: order.order_number, vendor: 'TR-AU', message: detail });
+async function sendTrAuOrder(order, sentRows, transporter, inventory) {
+    const vendorItems = order.line_items.filter(
+        item => item.vendor === 'TR-AU' && item.current_quantity > 0
+    );
+    if (vendorItems.length === 0) return;
+
+    const ship = order.shipping_address || {};
+    const provinceCode = ship.province_code;
+    const homeWhse = pickWarehouseByProvince(provinceCode);
+    const altWhse  = otherWarehouse(homeWhse);
+
+    const total = parseFloat(order.total_price || '0');
+    const requireSignature = total > 300;
+    const gateways = (order.payment_gateway_names || []).map(g => String(g).toLowerCase());
+    const paymentLabel = gateways.length ? gateways.join(', ') : 'unknown';
+
+    if (!inventory) {
+        const msg = 'Inventory data unavailable - order skipped to avoid sending to wrong warehouse.';
+        console.log(`Order ${order.order_number} (TR-AU) - ${msg}`);
+        await sendErrorAlert(transporter, { orderNumber: order.order_number, vendor: 'TR-AU', message: msg });
+        return;
+    }
+
+    // --- Categorize each item by stock availability ---
+    const homeItems    = []; // in stock at home warehouse
+    const altItems     = []; // not at home, but in stock at alt warehouse
+    const noStockItems = []; // nowhere
+
+    for (const item of vendorItems) {
+        const homeQty = getStock(inventory, homeWhse, item.sku);
+        const altQty  = getStock(inventory, altWhse,  item.sku);
+
+        if (homeQty > 0)     homeItems.push(item);
+        else if (altQty > 0) altItems.push(item);
+        else                 noStockItems.push(item);
+    }
+
+    // Alert on items with no stock anywhere
+    if (noStockItems.length > 0) {
+        const skus = noStockItems.map(i => i.sku).join(', ');
+        const msg  = `No stock at either warehouse for SKU(s): ${skus}`;
+        console.log(`Order ${order.order_number} (TR-AU) - ${msg}`);
+        appendSentOrderRow({ orderNumber: order.order_number, vendor: 'TR-AU', warehouse: 'NONE', status: 'no_stock', detail: skus });
+        await sendErrorAlert(transporter, { orderNumber: order.order_number, vendor: 'TR-AU', message: msg });
+    }
+
+    // Is this a split? (items going to both warehouses)
+    const isSplit = homeItems.length > 0 && altItems.length > 0;
+
+    if (isSplit) {
+        console.log(
+            `Order ${order.order_number} (TR-AU) - SPLIT ORDER: ` +
+            `${homeItems.length} item(s) -> WHSE ${homeWhse} (PO: ${order.order_number}), ` +
+            `${altItems.length} item(s) -> WHSE ${altWhse} (PO: 0${order.order_number})`
+        );
+    }
+
+    // Build shipments to send
+    const shipments = [];
+
+    if (homeItems.length > 0 && !alreadySent(order.order_number, 'TR-AU', homeWhse, sentRows)) {
+        shipments.push({ whse: homeWhse, items: homeItems, po: `${order.order_number}` });
+    }
+
+    if (altItems.length > 0 && !alreadySent(order.order_number, 'TR-AU', altWhse, sentRows)) {
+        // "0" prefix on PO only when splitting — prevents duplicate PO at supplier
+        const po = isSplit ? `0${order.order_number}` : `${order.order_number}`;
+        shipments.push({ whse: altWhse, items: altItems, po });
+    }
+
+    if (shipments.length === 0) return; // All already sent or all no-stock
+
+    if (TESTING) {
+        for (const s of shipments) {
+            console.log(`TEST MODE - TR-AU Order ${s.po} would be sent to WHSE ${s.whse} | Payment: ${paymentLabel} | Sig: ${requireSignature}`);
+            s.items.forEach(i => console.log(`  TEST MODE - SKU: ${i.sku} | Qty: ${i.current_quantity}`));
         }
+        return;
+    }
+
+    // Send each shipment
+    for (const shipment of shipments) {
+        const formattedOrder = buildFormattedOrder({
+            whse: shipment.whse,
+            po: shipment.po,
+            order,
+            items: shipment.items,
+            requireSignature,
+        });
+
+        const result = await postOrderToSupplier(formattedOrder, transporter, order.order_number, shipment.whse);
+
+        appendSentOrderRow({
+            orderNumber: order.order_number,
+            vendor: 'TR-AU',
+            warehouse: shipment.whse,
+            status: result.success ? 'sent' : 'error',
+            detail: result.success
+                ? `PO: ${shipment.po} | ${shipment.items.length} item(s) | ${paymentLabel}${requireSignature ? ' | SIG REQ' : ''}`
+                : (result.detail || 'Unknown error'),
+        });
     }
 }
 
 // ===========================================================
-// KE-L -> Email to LKQ
+// KE-L -> Email to LKQ (no inventory check needed)
 // ===========================================================
 function buildItemsTable(items) {
-    const rows = items
-        .map(it => {
-            const qty = it.current_quantity ?? it.quantity ?? 0;
-            return `<tr><td style="padding:8px;border:1px solid #e5e7eb;">${escHtml(it.sku || '')}</td><td style="padding:8px;border:1px solid #e5e7eb; text-align:right;">${escHtml(String(qty))}</td></tr>`;
-        })
-        .join('');
+    const rows = items.map(it => {
+        const qty = it.current_quantity ?? it.quantity ?? 0;
+        return `<tr><td style="padding:8px;border:1px solid #e5e7eb;">${escHtml(it.sku || '')}</td><td style="padding:8px;border:1px solid #e5e7eb; text-align:right;">${escHtml(String(qty))}</td></tr>`;
+    }).join('');
     return `<table cellpadding="0" cellspacing="0" style="width:auto; max-width:400px; border-collapse:collapse; border:1px solid #e5e7eb;"><thead><tr style="background:#f9fafb;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">SKU</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:right;">Qty</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -298,11 +412,11 @@ async function sendKelOrder(order, sentRows, transporter) {
         it => it.vendor === 'KE-L' && (it.current_quantity ?? it.quantity ?? 0) > 0
     );
     if (items.length === 0) return;
-    if (alreadySent(order.order_number, 'KE-L', sentRows)) return;
+    if (alreadySent(order.order_number, 'KE-L', 'EMAIL', sentRows)) return;
 
     const subject = `PARTS AVENUE ACCT #197302 PURCHASE NUMBER #${order.order_number}`;
     const from = process.env.FROM_EMAIL || process.env.EMAIL_USER;
-    const to = process.env.TO_EMAIL;
+    const to   = process.env.TO_EMAIL;
 
     if (TESTING) {
         console.log(`TEST MODE - KE-L Order ${order.order_number} would be emailed to ${to}`);
@@ -311,7 +425,7 @@ async function sendKelOrder(order, sentRows, transporter) {
     }
 
     try {
-        if (!to) throw new Error('Missing TO_EMAIL in environment variables.');
+        if (!to)          throw new Error('Missing TO_EMAIL in environment variables.');
         if (!transporter) throw new Error('Email transport not available (missing EMAIL_USER/EMAIL_PASS).');
 
         const html = buildHtmlEmail(order, items);
@@ -319,15 +433,10 @@ async function sendKelOrder(order, sentRows, transporter) {
         await transporter.sendMail({ from, to, subject, text, html });
 
         console.log(`Order ${order.order_number} (KE-L) emailed to ${to}`);
-        appendSentOrderRow({
-            orderNumber: order.order_number,
-            vendor: 'KE-L',
-            status: 'sent',
-            detail: `${items.length} item(s)`,
-        });
+        appendSentOrderRow({ orderNumber: order.order_number, vendor: 'KE-L', warehouse: 'EMAIL', status: 'sent', detail: `${items.length} item(s)` });
     } catch (err) {
         console.log(`Order ${order.order_number} (KE-L) NOT sent (ERROR): ${err.message}`);
-        appendSentOrderRow({ orderNumber: order.order_number, vendor: 'KE-L', status: 'error', detail: err.message });
+        appendSentOrderRow({ orderNumber: order.order_number, vendor: 'KE-L', warehouse: 'EMAIL', status: 'error', detail: err.message });
         await sendErrorAlert(transporter, { orderNumber: order.order_number, vendor: 'KE-L', message: err.message });
     }
 }
@@ -361,8 +470,21 @@ async function run() {
         return;
     }
 
+    // Fetch inventory once for all TR-AU orders in this run
+    let inventory = null;
+    const hasTrAuOrders = orders.some(o => o.line_items?.some(i => i.vendor === 'TR-AU' && i.current_quantity > 0));
+    if (hasTrAuOrders) {
+        try {
+            inventory = await fetchInventory();
+        } catch (err) {
+            console.error('Could not fetch Transit inventory:', err.message);
+            await sendErrorAlert(transporter, { orderNumber: 'N/A', vendor: 'Inventory fetch', message: err.message });
+            // inventory stays null — TR-AU orders will be individually skipped with alerts
+        }
+    }
+
     for (const order of orders) {
-        await sendTrAuOrder(order, sentRows, transporter);
+        await sendTrAuOrder(order, sentRows, transporter, inventory);
         await sendKelOrder(order, sentRows, transporter);
     }
 
