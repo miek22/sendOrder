@@ -37,3 +37,4 @@ timestamp,orderNumber,vendor,status,detail
 2026-07-08T17:39:07.832Z,2754,TR-AU,001,sent,PO: 2754 | 1 item(s) | shopify_payments
 2026-07-08T17:39:09.673Z,2753,TR-AU,021,sent,PO: 2753 | 1 item(s) | shopify_payments
 2026-07-09T04:52:22.427Z,2755,TR-AU,001,error,ERROR | WHSE: 001 | HTTP: n/a | timeout of 30000ms exceeded
+2026-07-09T13:19:12.198Z,2755,TR-AU,001,sent,PO: 2755 | 1 item(s) | shopify_payments
