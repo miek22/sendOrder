@@ -94,6 +94,17 @@ function alreadySent(orderNumber, vendor, warehouse, sentRows) {
     );
 }
 
+// True if ANY shipment for this order+vendor has already gone out successfully —
+// to one warehouse, or as a split across both. Stock levels can shift between runs,
+// but once part of an order has shipped, the rest is a manual call (e.g. the
+// remaining item was out of stock everywhere and needs a human decision), not
+// something this script should act on again just because inventory changed later.
+function hasAnySentShipment(orderNumber, vendor, sentRows) {
+    return sentRows.some(
+        r => r && r.orderNumber === String(orderNumber) && r.vendor === vendor && r.status === 'sent'
+    );
+}
+
 // ---------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------
@@ -277,6 +288,13 @@ async function sendTrAuOrder(order, sentRows, transporter, inventory) {
         item => item.vendor === 'TR-AU' && item.current_quantity > 0
     );
     if (vendorItems.length === 0) return;
+
+    // Any part of this order already shipped in a prior run — do not touch it
+    // again, even if it was only a partial fulfillment. A leftover no_stock/error
+    // item on an order that already shipped in part is handled manually from here.
+    if (hasAnySentShipment(order.order_number, 'TR-AU', sentRows)) {
+        return;
+    }
 
     const ship = order.shipping_address || {};
     const provinceCode = ship.province_code;
