@@ -40,3 +40,5 @@ timestamp,orderNumber,vendor,status,detail
 2026-07-09T13:19:12.198Z,2755,TR-AU,001,sent,PO: 2755 | 1 item(s) | shopify_payments
 2026-07-09T17:46:54.308Z,2756,TR-AU,001,sent,PO: 2756 | 1 item(s) | paypal
 2026-07-09T20:51:25.517Z,2757,TR-AU,001,sent,PO: 2757 | 1 item(s) | paypal
+2026-07-10T16:46:01.964Z,2758,TR-AU,001,sent,PO: 2758 | 1 item(s) | paypal
+2026-07-10T16:46:04.585Z,2757,TR-AU,021,error,ERROR | WHSE: 021 | HTTP: 400 | Request failed with status code 400
