@@ -67,3 +67,5 @@ timestamp,orderNumber,vendor,status,detail
 2026-07-23T03:27:23.508Z,2785,TR-AU,021,sent,PO: 2785 | 2 item(s) | shopify_payments | SIG REQ
 2026-07-23T03:27:25.145Z,2785,TR-AU,001,sent,PO: 02785 | 2 item(s) | shopify_payments | SIG REQ
 2026-07-23T03:27:25.930Z,2784,TR-AU,021,sent,PO: 2784 | 1 item(s) | shopify_payments
+2026-07-23T16:00:05.125Z,2787,TR-AU,001,sent,PO: 2787 | 1 item(s) | paypal
+2026-07-23T16:00:07.642Z,2786,TR-AU,021,sent,PO: 2786 | 1 item(s) | shopify_payments
