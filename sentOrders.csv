@@ -83,3 +83,6 @@ timestamp,orderNumber,vendor,status,detail
 2026-08-03T03:37:39.107Z,2801,TR-AU,001,sent,PO: 2801 | 1 item(s) | shopify_payments
 2026-08-03T03:37:39.791Z,2800,TR-AU,001,sent,PO: 2800 | 1 item(s) | shopify_payments
 2026-08-03T03:37:40.462Z,2799,TR-AU,001,sent,PO: 2799 | 1 item(s) | paypal
+2026-08-04T14:31:01.025Z,2805,TR-AU,001,sent,PO: 2805 | 1 item(s) | shopify_payments
+2026-08-04T14:31:03.015Z,2804,TR-AU,001,sent,PO: 2804 | 3 item(s) | paypal | SIG REQ
+2026-08-04T14:31:05.230Z,2802,TR-AU,001,sent,PO: 2802 | 2 item(s) | shopify_payments
