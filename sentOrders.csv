@@ -96,3 +96,5 @@ timestamp,orderNumber,vendor,status,detail
 2026-08-09T19:00:17.847Z,2813,TR-AU,001,sent,PO: 2813 | 1 item(s) | shopify_payments
 2026-08-10T14:10:11.509Z,2815,TR-AU,021,sent,PO: 2815 | 1 item(s) | shopify_payments
 2026-08-10T14:10:14.536Z,2814,TR-AU,001,sent,PO: 2814 | 2 item(s) | paypal
+2026-08-11T15:54:22.162Z,2817,TR-AU,021,sent,PO: 2817 | 1 item(s) | paypal
+2026-08-11T15:54:23.555Z,2816,TR-AU,001,sent,PO: 2816 | 1 item(s) | paypal
