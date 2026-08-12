@@ -102,3 +102,4 @@ timestamp,orderNumber,vendor,status,detail
 2026-08-12T16:04:42.215Z,2820,TR-AU,021,error,ERROR | WHSE: 021 | HTTP: 400 | Request failed with status code 400
 2026-08-12T16:04:43.758Z,2819,TR-AU,021,sent,PO: 2819 | 1 item(s) | shopify_payments
 2026-08-12T16:04:44.472Z,2818,TR-AU,001,sent,PO: 2818 | 1 item(s) | shopify_payments
+2026-08-12T18:39:53.909Z,2820,TR-AU,NONE,no_stock,KN7-100586
