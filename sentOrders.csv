@@ -98,3 +98,7 @@ timestamp,orderNumber,vendor,status,detail
 2026-08-10T14:10:14.536Z,2814,TR-AU,001,sent,PO: 2814 | 2 item(s) | paypal
 2026-08-11T15:54:22.162Z,2817,TR-AU,021,sent,PO: 2817 | 1 item(s) | paypal
 2026-08-11T15:54:23.555Z,2816,TR-AU,001,sent,PO: 2816 | 1 item(s) | paypal
+2026-08-12T16:04:38.883Z,2821,TR-AU,001,sent,PO: 2821 | 1 item(s) | shopify_payments | SIG REQ
+2026-08-12T16:04:42.215Z,2820,TR-AU,021,error,ERROR | WHSE: 021 | HTTP: 400 | Request failed with status code 400
+2026-08-12T16:04:43.758Z,2819,TR-AU,021,sent,PO: 2819 | 1 item(s) | shopify_payments
+2026-08-12T16:04:44.472Z,2818,TR-AU,001,sent,PO: 2818 | 1 item(s) | shopify_payments
