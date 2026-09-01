@@ -142,3 +142,4 @@ timestamp,orderNumber,vendor,status,detail
 2026-08-31T15:41:15.303Z,2859,TR-AU,001,sent,PO: 2859 | 2 item(s) | shopify_payments
 2026-08-31T15:41:16.954Z,2858,TR-AU,001,sent,PO: 2858 | 1 item(s) | shopify_payments | SIG REQ
 2026-09-01T15:44:10.150Z,2863,KE-L,EMAIL,sent,1 item(s)
+2026-09-01T21:20:14.554Z,2862,TR-AU,021,sent,PO: 2862 | 1 item(s) | shopify_payments | SIG REQ
