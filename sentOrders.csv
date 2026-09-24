@@ -182,3 +182,4 @@ timestamp,orderNumber,vendor,status,detail
 2026-09-22T16:25:50.908Z,2901,TR-AU,001,sent,PO: 2901 | 1 item(s) | shopify_payments | SIG REQ
 2026-09-23T16:50:38.924Z,2904,TR-AU,021,sent,PO: 2904 | 1 item(s) | shopify_payments
 2026-09-23T16:50:39.908Z,2903,TR-AU,001,sent,PO: 2903 | 1 item(s) | shopify_payments
+2026-09-24T16:05:52.179Z,2905,TR-AU,001,sent,PO: 2905 | 1 item(s) | paypal | SIG REQ
