@@ -190,3 +190,4 @@ timestamp,orderNumber,vendor,status,detail
 2026-09-28T16:05:14.870Z,2911,TR-AU,001,sent,PO: 2911 | 1 item(s) | paypal
 2026-09-28T16:05:16.946Z,2910,KE-L,EMAIL,sent,1 item(s)
 2026-09-29T16:11:34.668Z,2912,TR-AU,001,sent,PO: 2912 | 1 item(s) | paypal
+2026-10-01T15:55:42.343Z,2913,TR-AU,021,sent,PO: 2913 | 1 item(s) | shopify_payments | SIG REQ
