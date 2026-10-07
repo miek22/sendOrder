@@ -197,3 +197,5 @@ timestamp,orderNumber,vendor,status,detail
 2026-10-05T18:45:37.977Z,2917,TR-AU,001,sent,PO: 2917 | 2 item(s) | shopify_payments
 2026-10-07T19:52:36.949Z,2922,TR-AU,021,sent,PO: 2922 | 1 item(s) | shopify_payments
 2026-10-07T19:52:37.652Z,2921,TR-AU,001,sent,PO: 2921 | 1 item(s) | shopify_payments
+2026-10-07T20:02:16.922Z,2920,TR-AU,021,sent,"PO: 2920 | 3 item(s) | shopify_payments, manual | SIG REQ"
+2026-10-07T20:02:18.100Z,2920,TR-AU,001,sent,"PO: 02920 | 1 item(s) | shopify_payments, manual | SIG REQ"
