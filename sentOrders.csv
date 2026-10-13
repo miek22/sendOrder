@@ -204,3 +204,7 @@ timestamp,orderNumber,vendor,status,detail
 2026-10-09T16:42:31.649Z,2923,TR-AU,001,sent,PO: 2923 | 1 item(s) | shopify_payments
 2026-10-10T23:10:38.059Z,2927,TR-AU,001,sent,PO: 2927 | 1 item(s) | shopify_payments
 2026-10-10T23:10:38.783Z,2926,TR-AU,021,sent,PO: 2926 | 1 item(s) | shopify_payments
+2026-10-13T15:57:49.708Z,2931,TR-AU,001,sent,PO: 2931 | 1 item(s) | paypal
+2026-10-13T15:57:51.012Z,2930,TR-AU,001,sent,PO: 2930 | 2 item(s) | paypal
+2026-10-13T15:57:51.962Z,2929,TR-AU,001,sent,PO: 2929 | 1 item(s) | shopify_payments
+2026-10-13T15:57:52.732Z,2928,TR-AU,001,sent,PO: 2928 | 1 item(s) | shopify_payments
