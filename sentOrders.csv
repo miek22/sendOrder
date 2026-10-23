@@ -228,3 +228,5 @@ timestamp,orderNumber,vendor,status,detail
 2026-10-21T16:56:54.688Z,2949,TR-AU,021,sent,PO: 2949 | 1 item(s) | shopify_payments
 2026-10-21T16:56:56.754Z,2948,TR-AU,001,sent,PO: 2948 | 1 item(s) | paypal | SIG REQ
 2026-10-22T18:19:45.280Z,2952,TR-AU,NONE,no_stock,KNH-100012
+2026-10-23T15:38:07.500Z,2955,TR-AU,001,sent,PO: 2955 | 1 item(s) | paypal | SIG REQ
+2026-10-23T15:38:08.258Z,2954,TR-AU,021,sent,PO: 2954 | 1 item(s) | shopify_payments
