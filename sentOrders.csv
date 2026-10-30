@@ -240,3 +240,4 @@ timestamp,orderNumber,vendor,status,detail
 2026-10-29T19:32:13.369Z,2963,TR-AU,001,sent,PO: 2963 | 1 item(s) | shopify_payments | SIG REQ
 2026-10-30T16:13:51.034Z,2965,TR-AU,001,sent,PO: 2965 | 1 item(s) | shopify_payments
 2026-10-30T16:13:52.330Z,2964,KE-L,EMAIL,sent,1 item(s)
+2026-10-30T19:42:10.795Z,2966,KE-L,EMAIL,sent,1 item(s)
