@@ -22,6 +22,7 @@ const nodemailer = require('nodemailer');
 const { fetchShopifyOrders } = require('./shopify');
 
 const TESTING = process.env.TESTING === 'true';
+const SIGNATURE_REQUIRED_ALL = process.env.SIGNATURE_REQUIRED_ALL === 'true';
 
 const SENT_ORDERS_CSV = path.join(__dirname, 'sentOrders.csv');
 const CSV_HEADER = 'timestamp,orderNumber,vendor,warehouse,status,detail';
@@ -302,7 +303,7 @@ async function sendTrAuOrder(order, sentRows, transporter, inventory) {
     const altWhse  = otherWarehouse(homeWhse);
 
     const total = parseFloat(order.total_price || '0');
-    const requireSignature = total > 300;
+    const requireSignature = SIGNATURE_REQUIRED_ALL || total > 300;
     const gateways = (order.payment_gateway_names || []).map(g => String(g).toLowerCase());
     const paymentLabel = gateways.length ? gateways.join(', ') : 'unknown';
 
