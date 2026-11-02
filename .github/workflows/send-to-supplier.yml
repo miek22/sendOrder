@@ -9,6 +9,11 @@ on:
         description: "Dry run (true/false) - don't actually send or log anything as sent"
         required: false
         default: "false"
+      signature_required_all:
+        description: "Signature required on every order (true/false). false keeps the existing threshold"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -41,6 +46,7 @@ jobs:
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
           TESTING: ${{ github.event.inputs.testing }}
+          SIGNATURE_REQUIRED_ALL: ${{ github.event.inputs.signature_required_all }}
           SUPPLIER_API_URL_INVENTORY: ${{ secrets.SUPPLIER_API_URL_INVENTORY }}
           SUPPLIER_API_URL_INVENTORY_CAL: ${{ secrets.SUPPLIER_API_URL_INVENTORY_CAL }}
 
