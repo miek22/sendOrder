@@ -273,3 +273,5 @@ timestamp,orderNumber,vendor,status,detail
 2026-11-24T17:03:40.957Z,2999,TR-AU,021,sent,PO: 2999 | 1 item(s) | shopify_payments
 2026-11-24T17:03:41.951Z,2998,TR-AU,001,sent,PO: 2998 | 1 item(s) | shopify_payments
 2026-11-25T15:27:55.663Z,3000,TR-AU,001,sent,PO: 3000 | 1 item(s) | shopify_payments
+2026-11-28T18:33:13.375Z,3002,TR-AU,001,sent,PO: 3002 | 1 item(s) | shopify_payments
+2026-11-28T18:33:14.023Z,3001,TR-AU,001,sent,PO: 3001 | 1 item(s) | shopify_payments | SIG REQ
